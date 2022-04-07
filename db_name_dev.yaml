@@ -1,0 +1,7 @@
+# 开发环境的clickhouse数据库信息
+
+test:
+  host: ""
+  port: 9003
+  username: ""
+  password: ""

@@ -1,0 +1,7 @@
+# 生产环境的clickhouse数据库信息
+
+clickhouse_name:
+  host: ""
+  port:
+  username: ""
+  password: ""
