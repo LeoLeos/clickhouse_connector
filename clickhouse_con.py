@@ -17,16 +17,18 @@ import pandas as pd
 import datetime
 from pandahouse import read_clickhouse
 import yaml
+import os
 
 class ClickhouseConnector(object):
     """
     clickhouse数据库连接类
     """
     def __init__(self, server_name: str, dev: bool = False):
+        base_dir = os.path.abspath(os.path.dirname(__file__))
         if dev:
-            server_info = self.__read_database_info("db_name_dev.yaml")[server_name]
+            server_info = self.__read_database_info(base_dir + "/db_name_dev.yaml")[server_name]
         else:
-            server_info = self.__read_database_info("db_name_prod.yaml")[server_name]
+            server_info = self.__read_database_info(base_dir + "/db_name_prod.yaml")[server_name]
         self.host = server_info["host"]
         self.port = server_info["port"]
         self.username = server_info["username"]
