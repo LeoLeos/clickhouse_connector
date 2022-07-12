@@ -220,7 +220,9 @@ class ClickhouseConnector(object):
         for one_num in range(insert_num):
             now_data_list = data_list[(one_num * group_limit): (one_num * group_limit + group_limit)]
             if now_data_list:
-                self.client.execute(f"INSERT INTO {db_name}.{sheet_name} ({cols}) VALUES", now_data_list)
+                date_str = [tuple(i) for i in now_data_list]
+                insert_sql = f"INSERT INTO {db_name}.{sheet_name} ({cols}) VALUES "+str(date_str)[1:-1]
+                self.client.execute(insert_sql)
 
     def query(self, ck_sql: str):
         """
