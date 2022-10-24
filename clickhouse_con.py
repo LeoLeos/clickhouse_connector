@@ -249,3 +249,65 @@ class ClickhouseConnector(object):
             return True
         except Exception as create_err:
             raise create_err
+            
+        def df_insert_ck(self, df: pd.DataFrame, db_name: str, sheet_name: str):
+        """
+        :param df : DataFrame
+        :param sheet_name : sheet_name
+        :param if_exist ：append or replace, default append 默认追加
+        :param columns_dict comment注释对照
+        """
+        # 按对应列的格式填充数据
+        # 以默认值填充None
+        df = df.fillna(self.d_type_change(db_name=db_name, sheet_name=sheet_name))
+        # 将df转化类型与目标数据库类型一致
+        df = df.astype(self.get_fields_type(df=df, db_name=db_name, sheet_name=sheet_name))
+        df['update_time'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 数据总是以尽量大的batch进行写入，如每次写入100,000行。
+        group_limit = int(1e6)
+        columns = '`,`'.join(df.columns)
+        insert_sql = f'INSERT INTO `{db_name}`.`{sheet_name}` (`{columns}`) VALUES'
+        # 每次以1M条数据写入数据库
+        flag = 0
+        while True:
+            result = self.client.execute(insert_sql, df[flag * group_limit: (flag + 1) * group_limit].values.tolist())
+            flag += 1
+            # 全部已经推送
+            if result == 0:
+                print("写入数据库完成！")
+                break
+        pass
+    
+    def d_type_change(self, db_name: str, sheet_name: str):
+        """
+        获取表的字段类型, 并并返回默认值用于填充
+        """
+        columns_type = self.client.query_dataframe(f"desc `{db_name}`.`{sheet_name}`")[["name", "type"]]
+        columns_dict = {n: m for n, m in zip(columns_type["name"], columns_type["type"])}
+        for i in columns_dict.keys():
+            if 'int' in columns_dict[i].lower():
+                columns_dict[i] = 0
+            elif 'float' in columns_dict[i].lower():
+                columns_dict[i] = 0.0
+            elif 'string' in columns_dict[i].lower():
+                columns_dict[i] = ''
+        return columns_dict
+
+    def get_fields_type(self, df: pd.DataFrame, db_name: str, sheet_name: str):
+        """
+        获取数据库字段类型
+        """
+        columns_type = self.client.query_dataframe(f"desc `{db_name}`.`{sheet_name}`")[["name", "type"]]
+        columns_dict = {n: m for n, m in zip(columns_type["name"], columns_type["type"])}
+        for i in columns_dict.keys():
+            if 'int' in columns_dict[i].lower():
+                columns_dict[i] = 'int'
+            elif 'float' in columns_dict[i].lower():
+                columns_dict[i] = 'float'
+            elif 'string' in columns_dict[i].lower():
+                columns_dict[i] = 'str'
+        # df的字段应该赋予的数据类型
+        df_fields_type = {}
+        for i in df.columns:
+            df_fields_type[i] = columns_dict[i]
+        return df_fields_type
